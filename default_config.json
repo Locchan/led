@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "SourceCLI": {
+      "targets": ["DummyTarget"]
+    }
+  },
+  "targets": {
+    "DummyTarget": {}
+  }
+}

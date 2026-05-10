@@ -23,8 +23,9 @@ sudo bash install.sh
 
 The installer will:
 
-1. Ensure `/etc/led/config.json` exists; if not, write a stub with empty
-   `sources` and `targets`.
+1. Ensure `/etc/led/config.json` exists; if not, copy `default_config.json`
+   from the repo into place. The default wires `SourceCLI` to `DummyTarget`,
+   so a fresh install can be exercised end-to-end with `led_send "hi"`.
 2. Run `pip install --force-reinstall --no-deps .`, which places the `led`
    and `led_send` binaries on `PATH`. `--force-reinstall` ensures the new
    code is picked up even if the version in `pyproject.toml` wasn't bumped.
@@ -124,6 +125,18 @@ Example:
 ```
 
 ## Targets
+
+### `DummyTarget`
+
+Prints each routed message to stdout in the form
+`Message from <SourceName>: <message>`. Useful for smoke-testing a fresh
+install. Takes no fields.
+
+Example:
+
+```json
+"DummyTarget": {}
+```
 
 ### `TelegramTarget`
 

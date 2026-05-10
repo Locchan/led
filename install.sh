@@ -12,15 +12,8 @@ CONFIG_PATH=/etc/led/config.json
 mkdir -p "$(dirname "$CONFIG_PATH")"
 
 if [ ! -f "$CONFIG_PATH" ]; then
-    cat > "$CONFIG_PATH" <<'EOF'
-{
-  "sources": {
-    "SourceCLI": {}
-  },
-  "targets": {}
-}
-EOF
-    echo "Wrote stub config at $CONFIG_PATH"
+    cp "$SCRIPT_DIR/default_config.json" "$CONFIG_PATH"
+    echo "Wrote default config to $CONFIG_PATH"
 fi
 
 echo "Installing the led package..."
