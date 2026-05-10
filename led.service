@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=%LED_BIN% --config %CONFIG_PATH%
+ExecStart=%LED_BIN% --config /etc/led/config.json
 Restart=on-failure
 RestartSec=5
 

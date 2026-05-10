@@ -8,9 +8,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-read -rp "Config file path [/etc/led/config.json]: " CONFIG_PATH
-CONFIG_PATH="${CONFIG_PATH:-/etc/led/config.json}"
-
+CONFIG_PATH=/etc/led/config.json
 mkdir -p "$(dirname "$CONFIG_PATH")"
 
 if [ ! -f "$CONFIG_PATH" ]; then
@@ -34,9 +32,7 @@ fi
 echo "led binary at: $LED_BIN"
 
 UNIT_PATH=/etc/systemd/system/led.service
-sed -e "s|%LED_BIN%|$LED_BIN|g" \
-    -e "s|%CONFIG_PATH%|$CONFIG_PATH|g" \
-    "$SCRIPT_DIR/led.service" > "$UNIT_PATH"
+sed -e "s|%LED_BIN%|$LED_BIN|g" "$SCRIPT_DIR/led.service" > "$UNIT_PATH"
 echo "Installed unit file: $UNIT_PATH"
 
 systemctl daemon-reload
@@ -49,7 +45,7 @@ fi
 cat <<EOF
 
 Done. Next steps:
-  1. Edit $CONFIG_PATH to configure sources and targets (see CONFIG.md).
+  1. Edit $CONFIG_PATH to configure sources and targets (see README.md).
   2. systemctl enable --now led
   3. journalctl -u led -f   # to watch logs
 EOF

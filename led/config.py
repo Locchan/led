@@ -4,6 +4,8 @@ from led.Sources import ENABLED_SOURCES
 from led.Targets import ENABLED_TARGETS
 
 
+DEFAULT_CONFIG_PATH = '/etc/led/config.json'
+
 _CONFIG = None
 
 

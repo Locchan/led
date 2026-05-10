@@ -8,7 +8,11 @@ from led.router import router
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="Locchan's Event Daemon")
-    parser.add_argument('--config', required=True, help="Path to JSON config file")
+    parser.add_argument(
+        '--config',
+        default=config.DEFAULT_CONFIG_PATH,
+        help=f"Path to JSON config file (default: {config.DEFAULT_CONFIG_PATH})",
+    )
     return parser.parse_args()
 
 
