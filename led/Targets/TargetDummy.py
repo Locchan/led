@@ -1,8 +1,8 @@
 from led.Interfaces.EventTarget import EventTarget
 
 
-class DummyTarget(EventTarget):
-    name = "DummyTarget"
+class TargetDummy(EventTarget):
+    name = "TargetDummy"
 
     def _initialize(self):
         print(f"  {self.name}: ready (writes to stdout)")

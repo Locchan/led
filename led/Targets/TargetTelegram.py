@@ -5,8 +5,8 @@ from led import config
 from led.Interfaces.EventTarget import EventTarget
 
 
-class TelegramTarget(EventTarget):
-    name = "TelegramTarget"
+class TargetTelegram(EventTarget):
+    name = "TargetTelegram"
 
     def __init__(self):
         super().__init__()

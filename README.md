@@ -24,7 +24,7 @@ sudo bash install.sh
 The installer will:
 
 1. Ensure `/etc/led/config.json` exists; if not, copy `default_config.json`
-   from the repo into place. The default wires `SourceCLI` to `DummyTarget`,
+   from the repo into place. The default wires `SourceCLI` to `TargetDummy`,
    so a fresh install can be exercised end-to-end with `led_send "hi"`.
 2. Create a dedicated virtualenv at `/opt/led/venv` (if absent) and run
    `pip install --force-reinstall --no-deps .` inside it. Using a venv keeps
@@ -105,7 +105,7 @@ Example:
 
 ```json
 "SourceCLI": {
-  "targets": ["TelegramTarget"]
+  "targets": ["TargetTelegram"]
 }
 ```
 
@@ -124,13 +124,13 @@ Example:
 ```json
 "SourceHTTP": {
   "port": 8080,
-  "targets": ["TelegramTarget"]
+  "targets": ["TargetTelegram"]
 }
 ```
 
 ## Targets
 
-### `DummyTarget`
+### `TargetDummy`
 
 Prints each routed message to stdout in the form
 `Message from <SourceName>: <message>`. Useful for smoke-testing a fresh
@@ -139,10 +139,10 @@ install. Takes no fields.
 Example:
 
 ```json
-"DummyTarget": {}
+"TargetDummy": {}
 ```
 
-### `TelegramTarget`
+### `TargetTelegram`
 
 Sends each routed message as a Telegram message via the Bot API
 (`https://api.telegram.org/bot<token>/sendMessage`).
@@ -155,7 +155,7 @@ Sends each routed message as a Telegram message via the Bot API
 Example:
 
 ```json
-"TelegramTarget": {
+"TargetTelegram": {
   "bot_token": "123456:ABC-DEF...",
   "chat_id": "987654321"
 }
@@ -167,15 +167,15 @@ Example:
 {
   "sources": {
     "SourceCLI": {
-      "targets": ["TelegramTarget"]
+      "targets": ["TargetTelegram"]
     },
     "SourceHTTP": {
       "port": 8080,
-      "targets": ["TelegramTarget"]
+      "targets": ["TargetTelegram"]
     }
   },
   "targets": {
-    "TelegramTarget": {
+    "TargetTelegram": {
       "bot_token": "123456:ABC-DEF...",
       "chat_id": "987654321"
     }

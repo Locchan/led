@@ -1,7 +1,7 @@
-from led.Targets.TargetDummy import DummyTarget
-from led.Targets.TargetTelegram import TelegramTarget
+from led.Targets.TargetDummy import TargetDummy
+from led.Targets.TargetTelegram import TargetTelegram
 
 ENABLED_TARGETS = [
-    DummyTarget,
-    TelegramTarget,
+    TargetDummy,
+    TargetTelegram,
 ]
