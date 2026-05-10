@@ -26,12 +26,16 @@ The installer will:
 1. Ensure `/etc/led/config.json` exists; if not, copy `default_config.json`
    from the repo into place. The default wires `SourceCLI` to `DummyTarget`,
    so a fresh install can be exercised end-to-end with `led_send "hi"`.
-2. Run `pip install --force-reinstall --no-deps .`, which places the `led`
-   and `led_send` binaries on `PATH`. `--force-reinstall` ensures the new
-   code is picked up even if the version in `pyproject.toml` wasn't bumped.
-3. Render `led.service` into `/etc/systemd/system/led.service` with the
-   resolved `led` binary path substituted in.
-4. `systemctl daemon-reload`. If the service is already active, it's
+2. Create a dedicated virtualenv at `/opt/led/venv` (if absent) and run
+   `pip install --force-reinstall --no-deps .` inside it. Using a venv keeps
+   the daemon out of the system Python, which on modern Debian/Ubuntu is
+   blocked from `pip install` by PEP 668. `--force-reinstall` ensures new
+   code is picked up even when the version in `pyproject.toml` wasn't bumped.
+3. Symlink `/opt/led/venv/bin/led` and `led_send` into `/usr/local/bin/`
+   so both are on the default `PATH`.
+4. Render `led.service` into `/etc/systemd/system/led.service` with the
+   venv's `led` path substituted into `ExecStart`.
+5. `systemctl daemon-reload`. If the service is already active, it's
    restarted so the new code takes effect immediately.
 
 After install:
