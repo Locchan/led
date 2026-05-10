@@ -45,29 +45,17 @@ To re-deploy after code changes, just run `sudo bash install.sh` again.
 
 ## Sending events (`led_send`)
 
-`led_send` is a CLI client installed alongside `led`. It reads
-`/etc/led/config.json` and sends the given message to the first configured
-source that accepts it; if a source fails, it falls through to the next.
+`led_send` is a CLI client installed alongside `led`. It always talks to
+the daemon over the local Unix socket exposed by `SourceCLI`.
 
 ```
 led_send "hello world"
 ```
 
-That's the entire interface — one positional argument. No host or port
-flags: connection details come from the config file. Exit code is `0` on
-the first successful delivery, `1` if every configured source failed (the
-collected errors are printed to stderr), and `2` on a usage error.
-
-### How a source supports `led_send`
-
-Each source class in `ENABLED_SOURCES` may implement a
-`client_send(cls, source_cfg, message)` classmethod that knows how to
-deliver a message to a running instance of itself. `led_send` iterates the
-configured sources in order and calls `client_send` on each. A source
-without that method is skipped with an error noted in the fallback list.
-
-`SourceHTTP` implements it as a `POST http://127.0.0.1:<port>/event` with
-the same JSON shape the listener accepts.
+One positional argument, no flags. Exit code is `0` on success, `1` if the
+socket could not be reached or the daemon rejected the message, `2` on a
+usage error. For `led_send` to work, `SourceCLI` must be present in the
+config; the installer's stub config includes it by default.
 
 ## Configuration file
 
@@ -91,6 +79,30 @@ The config file is JSON with the following top-level shape:
 - Validation happens at startup; unknown names abort with a `ValueError`.
 
 ## Sources
+
+### `SourceCLI`
+
+Listens on a Unix domain socket for messages from `led_send` (or any local
+client speaking the same one-line JSON protocol). The daemon reads a single
+`{"message": "..."}\n` per connection and replies with `OK\n` or
+`ERR <ExceptionName>\n`.
+
+| Field         | Type             | Required | Default              | Description                                                  |
+|---------------|------------------|----------|----------------------|--------------------------------------------------------------|
+| `socket_path` | string           | no       | `/run/led/cli.sock`  | Filesystem path to the Unix socket.                          |
+| `targets`     | array of strings | no       | `[]`                 | Names of targets that receive each event.                    |
+
+The socket is created with mode `0660`. Under systemd, `/run/led/` is
+provisioned via `RuntimeDirectory=led` in the unit file, so non-root
+clients can be granted write access by adding them to the daemon's group.
+
+Example:
+
+```json
+"SourceCLI": {
+  "targets": ["TelegramTarget"]
+}
+```
 
 ### `SourceHTTP`
 
@@ -137,6 +149,9 @@ Example:
 ```json
 {
   "sources": {
+    "SourceCLI": {
+      "targets": ["TelegramTarget"]
+    },
     "SourceHTTP": {
       "port": 8080,
       "targets": ["TelegramTarget"]

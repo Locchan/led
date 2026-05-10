@@ -10,15 +10,6 @@ class EventSource:
     def _listen(self):
         pass
 
-    @classmethod
-    def client_send(cls, source_cfg, message):
-        """Deliver `message` to a running instance of this source.
-
-        Implementations must raise on failure so the CLI can fall back to the
-        next configured source.
-        """
-        raise NotImplementedError(f"{cls.__name__} has no CLI sender")
-
     def start_listener(self):
         def _run():
             while True:

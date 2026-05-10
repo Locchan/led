@@ -1,5 +1,4 @@
 import json
-import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from led import config
@@ -42,16 +41,3 @@ class SourceHTTP(EventSource):
 
         server = HTTPServer(('0.0.0.0', self.port), EventHandler)
         server.serve_forever()
-
-    @classmethod
-    def client_send(cls, source_cfg, message):
-        port = source_cfg.get('port', 8080)
-        url = f"http://127.0.0.1:{port}/event"
-        data = json.dumps({'message': message}).encode('utf-8')
-        request = urllib.request.Request(
-            url, data=data, method='POST',
-            headers={'Content-Type': 'application/json'},
-        )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            if response.status != 200:
-                raise RuntimeError(f"HTTP {response.status}")

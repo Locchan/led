@@ -14,7 +14,9 @@ mkdir -p "$(dirname "$CONFIG_PATH")"
 if [ ! -f "$CONFIG_PATH" ]; then
     cat > "$CONFIG_PATH" <<'EOF'
 {
-  "sources": {},
+  "sources": {
+    "SourceCLI": {}
+  },
   "targets": {}
 }
 EOF

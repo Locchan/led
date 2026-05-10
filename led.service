@@ -7,6 +7,8 @@ Type=simple
 ExecStart=%LED_BIN% --config /etc/led/config.json
 Restart=on-failure
 RestartSec=5
+RuntimeDirectory=led
+RuntimeDirectoryMode=0750
 
 [Install]
 WantedBy=multi-user.target
