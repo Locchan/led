@@ -1,0 +1,12 @@
+[Unit]
+Description=Locchan's Event Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%LED_BIN% --config %CONFIG_PATH%
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
