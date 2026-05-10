@@ -10,6 +10,10 @@ class EventSource:
     def _listen(self):
         pass
 
+    def _initialize(self):
+        """Validate config and prepare the source. Override in subclasses."""
+        pass
+
     def start_listener(self):
         def _run():
             while True:

@@ -20,6 +20,11 @@ class SourceCLI(EventSource):
         self.socket_path = cfg.get('socket_path', DEFAULT_SOCKET_PATH)
         self.targets = [utils.get_target(t) for t in cfg.get('targets', [])]
 
+    def _initialize(self):
+        if not isinstance(self.socket_path, str) or not self.socket_path:
+            raise ValueError(f"{self.name}: 'socket_path' must be a non-empty string")
+        print(f"  {self.name}: socket={self.socket_path}, targets={[t.name for t in self.targets]}")
+
     def _listen(self):
         os.makedirs(os.path.dirname(self.socket_path), exist_ok=True)
         try:

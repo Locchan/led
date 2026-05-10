@@ -16,6 +16,11 @@ class SourceHTTP(EventSource):
         self.port = cfg.get('port', 8080)
         self.targets = [utils.get_target(t) for t in cfg.get('targets', [])]
 
+    def _initialize(self):
+        if not isinstance(self.port, int) or not (0 < self.port < 65536):
+            raise ValueError(f"{self.name}: 'port' must be an integer in 1..65535")
+        print(f"  {self.name}: port={self.port}, targets={[t.name for t in self.targets]}")
+
     def _listen(self):
         source_instance = self
 
