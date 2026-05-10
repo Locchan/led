@@ -9,7 +9,7 @@ def handle_event(source, message, targets):
 def router():
     while True:
         if not EVENT_CACHE:
-            time.sleep(0.1)
+            time.sleep(0.3)
             continue
 
         source, message, targets = EVENT_CACHE.popleft()
