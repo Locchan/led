@@ -52,6 +52,19 @@ Every member runs:
 
 ## Alerts
 
+All alerts (cluster or otherwise) are routed through `led.alerts.send_alert`
+and wrapped in a consistent envelope before being passed to the target:
+
+```
+led alert from <node_name>:
+<message>
+```
+
+`<node_name>` is the cluster member name when the node has self-identified
+in `cluster_members`, otherwise `socket.gethostname()`.
+
+Cluster-specific alert messages:
+
 - **Node down**: when a node hasn't pinged (or been pinged) within
   `cluster_member_down_alert_min` minutes, the watcher emits
   `Lost communication with node '<name>'. Last successful ping was at '<time>'`.
@@ -60,7 +73,7 @@ Every member runs:
   different `led` version than the master, an alert fires once.
 - **Master conflict**: if a master sees any peer also reporting
   `mode: "master"` during the startup handshake, it emits
-  `led: Refusing to start on <host>: there's another master in the cluster.`
+  `Refusing to start on <host>: there's another master in the cluster.`
   and exits with code 1.
 
 ## Example cluster section

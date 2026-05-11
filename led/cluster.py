@@ -15,6 +15,8 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from led.alerts import send_alert
+
 try:
     from importlib.metadata import version as _pkg_version
     LED_VERSION = _pkg_version('led')
@@ -32,15 +34,6 @@ DEFAULTS = {
     'cluster_verify_tls': True,
     'cluster_tls_dir': '/etc/led/tls',
 }
-
-
-class _AlertSource:
-    """Synthetic source so cluster alerts have a sensible label in targets."""
-    name = "cluster"
-    id = "cluster"
-
-
-_ALERT_SOURCE = _AlertSource()
 
 
 def _ensure_certs(tls_dir):
@@ -116,12 +109,7 @@ class Cluster:
         }
 
     def _alert(self, message):
-        msg = f"led: {message}"
-        print(f"Sending an alert: '{msg}'")
-        try:
-            self.alert_target.send(_ALERT_SOURCE, msg)
-        except Exception as e:
-            print(f"  cluster: failed to send alert: {e.__class__.__name__}: {e}")
+        send_alert(self.alert_target, message, node_name=self.self_name or self.hostname)
 
     def _ssl_client_ctx(self):
         ctx = ssl.create_default_context()
