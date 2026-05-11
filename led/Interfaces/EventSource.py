@@ -1,3 +1,4 @@
+import time
 from threading import Thread
 
 
@@ -21,6 +22,7 @@ class EventSource:
                     self._listen()
                 except BaseException as e:
                     print(f"Event source [{self.id}] {self.name} crashed: {e.__class__.__name__}: {e}")
+                    time.sleep(1)
 
         print(f"  starting listener: [{self.id}] {self.name}")
         thread = Thread(name=f"{self.name}:{self.id}", target=_run, daemon=True)
