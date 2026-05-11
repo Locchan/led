@@ -1,7 +1,6 @@
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from led import config
 from led.Interfaces.EventSource import EventSource
 from led.router import handle_event
 
@@ -9,17 +8,17 @@ from led.router import handle_event
 class SourceHTTP(EventSource):
     name = "SourceHTTP"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, instance_id, cfg):
+        super().__init__(instance_id)
         from led import utils
-        cfg = config.get('sources')[self.name]
         self.port = cfg.get('port', 8080)
         self.targets = [utils.get_target(t) for t in cfg.get('targets', [])]
+        self._initialize()
 
     def _initialize(self):
         if not isinstance(self.port, int) or not (0 < self.port < 65536):
-            raise ValueError(f"{self.name}: 'port' must be an integer in 1..65535")
-        print(f"  {self.name}: port={self.port}, targets={[t.name for t in self.targets]}")
+            raise ValueError(f"[{self.id}] {self.name}: 'port' must be an integer in 1..65535")
+        print(f"  [{self.id}] {self.name}: port={self.port}, targets={[t.id for t in self.targets]}")
 
     def _listen(self):
         source_instance = self

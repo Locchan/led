@@ -2,7 +2,6 @@ import json
 import os
 import socket
 
-from led import config
 from led.Interfaces.EventSource import EventSource
 from led.router import handle_event
 
@@ -13,17 +12,17 @@ DEFAULT_SOCKET_PATH = "/run/led/cli.sock"
 class SourceCLI(EventSource):
     name = "SourceCLI"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, instance_id, cfg):
+        super().__init__(instance_id)
         from led import utils
-        cfg = config.get('sources')[self.name]
         self.socket_path = cfg.get('socket_path', DEFAULT_SOCKET_PATH)
         self.targets = [utils.get_target(t) for t in cfg.get('targets', [])]
+        self._initialize()
 
     def _initialize(self):
         if not isinstance(self.socket_path, str) or not self.socket_path:
-            raise ValueError(f"{self.name}: 'socket_path' must be a non-empty string")
-        print(f"  {self.name}: socket={self.socket_path}, targets={[t.name for t in self.targets]}")
+            raise ValueError(f"[{self.id}] {self.name}: 'socket_path' must be a non-empty string")
+        print(f"  [{self.id}] {self.name}: socket={self.socket_path}, targets={[t.id for t in self.targets]}")
 
     def _listen(self):
         os.makedirs(os.path.dirname(self.socket_path), exist_ok=True)

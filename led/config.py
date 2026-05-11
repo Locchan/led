@@ -22,7 +22,7 @@ def get(name, default=None):
     return _CONFIG.get(name, default)
 
 
-def _names(classes):
+def _types(classes):
     return {cls.name for cls in classes}
 
 
@@ -36,17 +36,37 @@ def validate_config(config):
         if not isinstance(config[key], dict):
             raise ValueError(f"Config key '{key}' must be an object")
 
-    available_sources = _names(ENABLED_SOURCES)
-    available_targets = _names(ENABLED_TARGETS)
+    available_sources = _types(ENABLED_SOURCES)
+    available_targets = _types(ENABLED_TARGETS)
 
-    for src_name in config['sources']:
-        if src_name not in available_sources:
+    for instance_id, entry in config['targets'].items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"Target '{instance_id}' config must be an object")
+        type_ = entry.get('type')
+        if not type_:
+            raise ValueError(f"Target '{instance_id}' is missing required field 'type'")
+        if type_ not in available_targets:
             raise ValueError(
-                f"Unknown source '{src_name}'. Available sources: {sorted(available_sources)}"
+                f"Target '{instance_id}' has unknown type '{type_}'. "
+                f"Available target types: {sorted(available_targets)}"
             )
 
-    for tgt_name in config['targets']:
-        if tgt_name not in available_targets:
+    target_ids = set(config['targets'].keys())
+
+    for instance_id, entry in config['sources'].items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"Source '{instance_id}' config must be an object")
+        type_ = entry.get('type')
+        if not type_:
+            raise ValueError(f"Source '{instance_id}' is missing required field 'type'")
+        if type_ not in available_sources:
             raise ValueError(
-                f"Unknown target '{tgt_name}'. Available targets: {sorted(available_targets)}"
+                f"Source '{instance_id}' has unknown type '{type_}'. "
+                f"Available source types: {sorted(available_sources)}"
             )
+        for tref in entry.get('targets', []) or []:
+            if tref not in target_ids:
+                raise ValueError(
+                    f"Source '{instance_id}' references unknown target '{tref}'. "
+                    f"Defined targets: {sorted(target_ids)}"
+                )

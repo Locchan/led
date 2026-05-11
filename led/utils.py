@@ -6,25 +6,33 @@ from led.Targets import ENABLED_TARGETS
 _TARGETS = {}
 
 
-def _by_name(classes):
+def _by_type(classes):
     return {cls.name: cls for cls in classes}
 
 
-def get_target(name):
-    return _TARGETS[name]
+def get_target(instance_id):
+    return _TARGETS[instance_id]
 
 
-def _build_targets():
-    available = _by_name(ENABLED_TARGETS)
-    for tgt_name in config.get('targets') or {}:
-        _TARGETS[tgt_name] = available[tgt_name]()
+def build_targets():
+    classes = _by_type(ENABLED_TARGETS)
+    for instance_id, entry in (config.get('targets') or {}).items():
+        cls = classes[entry['type']]
+        _TARGETS[instance_id] = cls(instance_id, entry)
+    return _TARGETS
 
 
-def start_listeners():
-    _build_targets()
-    available = _by_name(ENABLED_SOURCES)
+def build_sources():
+    classes = _by_type(ENABLED_SOURCES)
+    sources = []
+    for instance_id, entry in (config.get('sources') or {}).items():
+        cls = classes[entry['type']]
+        sources.append(cls(instance_id, entry))
+    return sources
+
+
+def start_listeners(sources):
     threads = []
-    for src_name in config.get('sources') or {}:
-        instance = available[src_name]()
-        threads.append(instance.start_listener())
+    for source in sources:
+        threads.append(source.start_listener())
     return threads

@@ -4,8 +4,8 @@ from threading import Thread
 class EventSource:
     name = None
 
-    def __init__(self):
-        pass
+    def __init__(self, instance_id):
+        self.id = instance_id
 
     def _listen(self):
         pass
@@ -20,9 +20,9 @@ class EventSource:
                 try:
                     self._listen()
                 except BaseException as e:
-                    print(f"Event source {self.__class__.__name__} crashed: {e.__class__.__name__}")
+                    print(f"Event source [{self.id}] {self.name} crashed: {e.__class__.__name__}: {e}")
 
-        print(f"Starting listener: {self.__class__.__name__}...")
-        thread = Thread(name=self.__class__.__name__, target=_run, daemon=True)
+        print(f"  starting listener: [{self.id}] {self.name}")
+        thread = Thread(name=f"{self.name}:{self.id}", target=_run, daemon=True)
         thread.start()
         return thread

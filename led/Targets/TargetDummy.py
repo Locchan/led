@@ -4,8 +4,12 @@ from led.Interfaces.EventTarget import EventTarget
 class TargetDummy(EventTarget):
     name = "TargetDummy"
 
+    def __init__(self, instance_id, cfg):
+        super().__init__(instance_id)
+        self._initialize()
+
     def _initialize(self):
-        print(f"  {self.name}: ready (writes to stdout)")
+        print(f"  [{self.id}] {self.name}: ready (writes to stdout)")
 
     def _send(self, source, message):
-        print(f"Message from {source.name}: {message}")
+        print(f"Message from {source.id}: {message}")

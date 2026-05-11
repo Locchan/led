@@ -19,7 +19,7 @@ def router():
             try:
                 target.send(source, message)
             except Exception as e:
-                print(f"Router failed to send an event to {target}: {e.__class__.__name__}")
+                print(f"Router failed to send an event to [{target.id}] ({target.name}): {e.__class__.__name__}: {e}")
                 failed_targets.append(target)
 
         if failed_targets:

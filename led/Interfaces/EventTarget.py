@@ -1,8 +1,8 @@
 class EventTarget:
     name = None
 
-    def __init__(self):
-        pass
+    def __init__(self, instance_id):
+        self.id = instance_id
 
     def _initialize(self):
         """Validate config and prepare the target. Override in subclasses."""

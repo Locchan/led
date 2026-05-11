@@ -1,10 +1,13 @@
 {
   "sources": {
-    "SourceCLI": {
-      "targets": ["TargetDummy"]
+    "cli": {
+      "type": "SourceCLI",
+      "targets": ["console"]
     }
   },
   "targets": {
-    "TargetDummy": {}
+    "console": {
+      "type": "TargetDummy"
+    }
   }
 }

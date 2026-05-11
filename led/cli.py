@@ -31,17 +31,15 @@ def _install_signal_handlers():
         signal.signal(s, _kill)
 
 
-def initialize(config_path):
-    cfg = config.load_config(config_path)
-    config.validate_config(cfg)
-    return cfg
-
-
 def main():
     args = _parse_args()
-    initialize(args.config)
+    cfg = config.load_config(args.config)
+    config.validate_config(cfg)
     _install_signal_handlers()
-    utils.start_listeners()
+
+    utils.build_targets()
+    sources = utils.build_sources()
+    utils.start_listeners(sources)
     router()
 
 
