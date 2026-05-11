@@ -116,8 +116,10 @@ class Cluster:
         }
 
     def _alert(self, message):
+        msg = f"led: {message}"
+        print(f"Sending an alert: '{msg}'")
         try:
-            self.alert_target.send(_ALERT_SOURCE, message)
+            self.alert_target.send(_ALERT_SOURCE, msg)
         except Exception as e:
             print(f"  cluster: failed to send alert: {e.__class__.__name__}: {e}")
 
@@ -160,6 +162,7 @@ class Cluster:
             except Exception as e:
                 print(f"  handshake to {name} failed: {e.__class__.__name__}: {e}")
                 continue
+            print(f"  handshake response from {name}: {resp}")
             if not isinstance(resp, dict):
                 continue
             if resp.get('mode') == 'master':
@@ -172,22 +175,19 @@ class Cluster:
                 and not self.version_alerted
             ):
                 self._alert(
-                    f"led: cluster version mismatch with {name}: "
+                    f"cluster version mismatch with {name}: "
                     f"master={LED_VERSION} vs {resp.get('version')!r}"
                 )
                 self.version_alerted = True
 
         if self.is_master and saw_other_master:
-            msg = f"led: Refusing to start on {self.hostname}: there's another master in the cluster."
-            self._alert(msg)
-            print(msg)
+            self._alert(f"Refusing to start on {self.hostname}: there's another master in the cluster.")
             os._exit(1)
 
     def _on_handshake_received(self, payload):
         host = payload.get('hostname', '?')
         mode = payload.get('mode', '?')
-        ver = payload.get('version', '?')
-        print(f"Got a handshake from {host} (mode={mode}, version={ver}).")
+        print(f"Got a handshake from {host}: {payload}")
         if mode == 'master':
             for name, addr in self.members.items():
                 if name == host or addr.rsplit(':', 1)[0] == host:
@@ -221,7 +221,8 @@ class Cluster:
                         with self.lock:
                             self.last_slave_pings[name] = now
                             self.last_alerted_at.pop(name, None)
-                    except Exception:
+                    except Exception as e:
+                        print(f"  cluster: ping to {name} ({addr}) failed: {e.__class__.__name__}: {e}")
                         last = self.last_slave_pings.get(name, now)
                         if now - last >= threshold:
                             self._maybe_alert_down(name, last, now)
