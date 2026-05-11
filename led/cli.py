@@ -39,6 +39,10 @@ def main():
 
     utils.build_targets()
     sources = utils.build_sources()
+
+    from led import cluster
+    cluster.start_if_configured(cfg, utils.get_target)
+
     utils.start_listeners(sources)
     router()
 
