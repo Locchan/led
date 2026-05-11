@@ -10,6 +10,53 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR=/opt/led/venv
 CONFIG_PATH=/etc/led/config.json
 
+# If this checkout is a git repo and the local branch is behind its upstream,
+# offer to pull. If the user pulls, re-exec to pick up the new install.sh.
+maybe_self_update() {
+    command -v git >/dev/null 2>&1 || return 0
+    git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+
+    echo "Checking the git checkout for updates..."
+    if ! git -C "$SCRIPT_DIR" fetch --quiet 2>/dev/null; then
+        echo "  git fetch failed; continuing with the local checkout."
+        return 0
+    fi
+
+    local upstream
+    upstream="$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+    if [ -z "$upstream" ]; then
+        echo "  no upstream tracking branch configured; skipping update check."
+        return 0
+    fi
+
+    local local_head upstream_head
+    local_head="$(git -C "$SCRIPT_DIR" rev-parse HEAD)"
+    upstream_head="$(git -C "$SCRIPT_DIR" rev-parse "$upstream")"
+
+    if [ "$local_head" = "$upstream_head" ]; then
+        echo "  already at $upstream ($local_head)."
+        return 0
+    fi
+
+    echo "Local checkout is behind $upstream:"
+    echo "  local:    $local_head"
+    echo "  upstream: $upstream_head"
+    local answer
+    read -rp "Run 'git pull --ff-only' before installing? [y/N]: " answer
+    case "$answer" in
+        [yY]|[yY][eE][sS])
+            git -C "$SCRIPT_DIR" pull --ff-only
+            echo "Re-launching installer with the updated code..."
+            exec bash "$0" "$@"
+            ;;
+        *)
+            echo "Skipping pull; installing the current local checkout."
+            ;;
+    esac
+}
+
+maybe_self_update "$@"
+
 mkdir -p "$(dirname "$CONFIG_PATH")"
 
 if [ ! -f "$CONFIG_PATH" ]; then
