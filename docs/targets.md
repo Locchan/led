@@ -10,6 +10,10 @@ Prints each routed message to stdout in the form
 `Message from <source_instance_id>: <message>`. Useful for smoke-testing a
 fresh install. Takes no fields beyond `type`.
 
+When the event also carries files (e.g. from `SourceFiles`), `TargetDummy`
+does not send them — it prints the list of filenames and a note that file
+delivery is unsupported.
+
 Example:
 
 ```json

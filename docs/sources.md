@@ -29,6 +29,40 @@ Example:
 }
 ```
 
+## `SourceFiles`
+
+Scans a directory on a fixed interval, picks up any `*.json` files, and
+forwards their contents to the configured targets. The JSON payload has the
+shape `{"message": "...", "files": ["a.jpg", "subdir/b.jpg"]}`. The `files`
+key is optional — a payload with no `files` (or an empty list) is delivered
+as a plain message. Paths in `files` are resolved relative to `basedir`, so
+the source hands targets absolute paths. After a successful dispatch the
+`.json` and every file it referenced are deleted. Malformed JSON is logged
+and left in place so it can be inspected. As a safety net the source also
+sweeps `basedir` (recursively) on every scan and removes any file whose
+mtime is older than `max_age` — this cleans up stragglers left behind by
+failed dispatches.
+
+| Field      | Type             | Required | Default  | Description                                                                |
+|------------|------------------|----------|----------|----------------------------------------------------------------------------|
+| `basedir`  | string           | yes      | —        | Directory scanned for `*.json` spool files and root for `files`.           |
+| `interval` | number (seconds) | no       | `5`      | Delay between directory scans.                                             |
+| `max_age`  | number (seconds) | no       | `86400`  | Files older than this in `basedir` are deleted on each scan as cleanup.    |
+| `targets`  | array of strings | no       | `[]`     | Target instance IDs that receive each event.                               |
+
+Example:
+
+```json
+"spool": {
+  "type": "SourceFiles",
+  "basedir": "/var/spool/led",
+  "interval": 5,
+  "targets": ["console"]
+}
+```
+
+Not every target supports files — see [targets.md](targets.md) for which do.
+
 ## `SourceHTTP`
 
 Listens for HTTP `POST /event` with a JSON body `{"message": "..."}` and

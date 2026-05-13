@@ -1,9 +1,9 @@
 # Locchan's Event Daemon
 
 A small event-router daemon that listens on a set of configurable sources
-(Unix socket, HTTP) and fans messages out to a set of configurable targets
-(stdout, Telegram, …). Optional multi-node clustering with health pings is
-built in.
+(Unix socket, HTTP, directory spool) and fans messages out to a set of
+configurable targets (stdout, Telegram, …). Optional multi-node clustering
+with health pings is built in.
 
 The daemon is `led`. A tiny CLI client, `led_send`, ships alongside it for
 sending events from the local shell. Both read their config from
@@ -15,7 +15,8 @@ sending events from the local shell. Both read their config from
   prerequisites.
 - [Configuration](docs/configuration.md) — overall config shape, instance
   IDs, full example.
-- [Sources](docs/sources.md) — `SourceCLI`, `SourceHTTP`, and their fields.
+- [Sources](docs/sources.md) — `SourceCLI`, `SourceFiles`, `SourceHTTP`, and
+  their fields.
 - [Targets](docs/targets.md) — `TargetDummy`, `TargetTelegram`, and their
   fields.
 - [`led_send`](docs/cli.md) — using the CLI client.

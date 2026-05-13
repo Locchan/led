@@ -31,7 +31,7 @@ class TargetTelegram(EventTarget):
                 )
         print(f"  [{self.id}] {self.name}: {len(self.chat_ids)} chat id(s) configured")
 
-    def _send(self, source, message):
+    def _send(self, source, message, files=None):
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         for chat_id in self.chat_ids:
             data = urllib.parse.urlencode({

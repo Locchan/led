@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "led"
-version = "1.0.0"
+version = "1.1.0"
 description = "Locchan's Event Daemon"
 requires-python = ">=3.7"
 
