@@ -1,5 +1,4 @@
-import urllib.parse
-import urllib.request
+import requests
 
 from led.Interfaces.EventTarget import EventTarget
 
@@ -32,12 +31,26 @@ class TargetTelegram(EventTarget):
         print(f"  [{self.id}] {self.name}: {len(self.chat_ids)} chat id(s) configured")
 
     def _send(self, source, message, files=None):
-        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         for chat_id in self.chat_ids:
-            data = urllib.parse.urlencode({
-                'chat_id': chat_id,
-                'text': message,
-            }).encode('utf-8')
-            request = urllib.request.Request(url, data=data, method='POST')
-            with urllib.request.urlopen(request, timeout=10) as response:
-                response.read()
+            if files:
+                # Endpoint for sending files
+                url = f"https://api.telegram.org/bot{self.bot_token}/sendDocument"
+
+                for file_path in files:
+                    with open(file_path, 'rb') as f:
+                        payload = {
+                            'chat_id': chat_id,
+                            'caption': message,  # The text message appears as the file caption
+                            'parse_mode': 'HTML'  # Optional: allows bold/italic in caption
+                        }
+                        files_payload = {'document': f}
+                        requests.post(url, data=payload, files=files_payload, timeout=30)
+            else:
+                # Original endpoint for plain text
+                url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+                payload = {
+                    'chat_id': chat_id,
+                    'text': message,
+                    'parse_mode': 'HTML'
+                }
+                requests.post(url, data=payload, timeout=10)
