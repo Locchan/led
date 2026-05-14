@@ -105,7 +105,6 @@ class Cluster:
             'version': LED_VERSION,
             'mode': 'master' if self.is_master else 'slave',
             'hostname': self.hostname,
-            'cluster_id': self.auth_hash,
         }
 
     def _alert(self, message):

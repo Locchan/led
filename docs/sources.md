@@ -37,11 +37,11 @@ shape `{"message": "...", "files": ["a.jpg", "subdir/b.jpg"]}`. The `files`
 key is optional — a payload with no `files` (or an empty list) is delivered
 as a plain message. Paths in `files` are resolved relative to `basedir`, so
 the source hands targets absolute paths. After a successful dispatch the
-`.json` and every file it referenced are deleted. Malformed JSON is logged
-and left in place so it can be inspected. As a safety net the source also
-sweeps `basedir` (recursively) on every scan and removes any file whose
-mtime is older than `max_age` — this cleans up stragglers left behind by
-failed dispatches.
+`.json` file is renamed to `.json.sent`. Malformed JSON is logged and left
+in place so it can be inspected. A periodic sweep removes all files in
+`basedir` (recursively) whose mtime is older than `max_age` — this is the
+only mechanism that deletes files, cleaning up `.json.sent` files,
+referenced media, and any other stragglers.
 
 | Field      | Type             | Required | Default  | Description                                                                |
 |------------|------------------|----------|----------|----------------------------------------------------------------------------|
