@@ -13,3 +13,4 @@ class EventTarget:
 
     def send(self, source, message, files=None):
         self._send(source, message, files or [])
+        print(f"  [{self.id}] {self.name}:  Message sent: {message}" + (f", files: {files}" if files else ""))

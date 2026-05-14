@@ -33,20 +33,18 @@ class TargetTelegram(EventTarget):
     def _send(self, source, message, files=None):
         for chat_id in self.chat_ids:
             if files:
-                # Endpoint for sending files
                 url = f"https://api.telegram.org/bot{self.bot_token}/sendDocument"
 
                 for file_path in files:
                     with open(file_path, 'rb') as f:
                         payload = {
                             'chat_id': chat_id,
-                            'caption': message,  # The text message appears as the file caption
-                            'parse_mode': 'HTML'  # Optional: allows bold/italic in caption
+                            'caption': message,
+                            'parse_mode': 'HTML'
                         }
                         files_payload = {'document': f}
                         requests.post(url, data=payload, files=files_payload, timeout=30)
             else:
-                # Original endpoint for plain text
                 url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
                 payload = {
                     'chat_id': chat_id,
