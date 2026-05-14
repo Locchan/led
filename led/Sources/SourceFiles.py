@@ -57,9 +57,6 @@ class SourceFiles(EventSource):
             print(f"[{self.id}] {self.name}: failed to process {path}: "
                   f"{e.__class__.__name__}: {e}")
             return
-        for f in files:
-            self._safe_remove(f)
-        self._safe_remove(path)
 
     def _safe_remove(self, path):
         try:
