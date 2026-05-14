@@ -91,7 +91,7 @@ if [ ! -x "$VENV_DIR/bin/python" ]; then
 fi
 
 echo "Installing the led package into $VENV_DIR..."
-"$VENV_DIR/bin/pip" install --quiet --force-reinstall --no-deps "$SCRIPT_DIR"
+"$VENV_DIR/bin/pip" install --quiet --force-reinstall "$SCRIPT_DIR"
 
 LED_BIN="$VENV_DIR/bin/led"
 LED_SEND_BIN="$VENV_DIR/bin/led_send"
