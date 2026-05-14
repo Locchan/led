@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import time
 
 from led.Interfaces.EventSource import EventSource
@@ -53,19 +54,11 @@ class SourceFiles(EventSource):
             rel_files = payload.get('files') or []
             files = [os.path.join(self.basedir, p) for p in rel_files]
             handle_event(self, message, self.targets, files)
+            shutil.move(path, f"{path}.sent")
         except Exception as e:
             print(f"[{self.id}] {self.name}: failed to process {path}: "
                   f"{e.__class__.__name__}: {e}")
             return
-
-    def _safe_remove(self, path):
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
-        except OSError as e:
-            print(f"[{self.id}] {self.name}: could not remove {path}: "
-                  f"{e.__class__.__name__}: {e}")
 
     def _cleanup_stale(self):
         cutoff = time.time() - self.max_age
