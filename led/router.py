@@ -3,7 +3,7 @@ import socket
 import threading
 import time
 
-EVENT_CACHE = deque(maxlen=64)
+EVENT_CACHE = deque(maxlen=256)
 
 # Aggregation buffer: (source_id, message) → entry dict
 _agg_buffer = {}
@@ -111,11 +111,30 @@ def router():
                 failed_targets.append(target)
 
         if failed_targets:
-            EVENT_CACHE.append({
-                'source': source,
-                'message': message,
-                'targets': failed_targets,
-                'files': files,
-                'count': count,
-                'first_time': first_time,
-            })
+            if not files:
+                # Merge back into agg buffer so new arrivals continue to fold in
+                source_id = getattr(source, 'id', str(source))
+                key = (source_id, message)
+                now = time.time()
+                with _agg_lock:
+                    if key in _agg_buffer:
+                        _agg_buffer[key]['count'] += count
+                        _agg_buffer[key]['last_time'] = now
+                        _agg_buffer[key]['first_time'] = min(_agg_buffer[key]['first_time'], first_time)
+                    else:
+                        _agg_buffer[key] = {
+                            'source': source,
+                            'targets': failed_targets,
+                            'first_time': first_time,
+                            'last_time': now,
+                            'count': count,
+                        }
+            else:
+                EVENT_CACHE.append({
+                    'source': source,
+                    'message': message,
+                    'targets': failed_targets,
+                    'files': files,
+                    'count': count,
+                    'first_time': first_time,
+                })
