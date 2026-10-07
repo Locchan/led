@@ -97,6 +97,12 @@ fi
 echo "Installing the led package into $VENV_DIR..."
 "$VENV_DIR/bin/pip" install --quiet --force-reinstall "$SCRIPT_DIR"
 
+echo "Running tests..."
+(
+    cd "$SCRIPT_DIR"
+    "$VENV_DIR/bin/python" -m unittest discover -s tests -v -b
+)
+
 LED_BIN="$VENV_DIR/bin/led"
 LED_SEND_BIN="$VENV_DIR/bin/led_send"
 

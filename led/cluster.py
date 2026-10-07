@@ -7,6 +7,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 import shutil
 import socket
 import ssl
@@ -27,13 +28,90 @@ except Exception:
 PING_INTERVAL_SEC = 60
 ALERT_REPEAT_SEC = 3600
 CERT_DAYS = 27000  # ~74 years, well past 2100
+MINUTES_PER_DAY = 24 * 60
+_SKIP_PERIOD_RE = re.compile(r'^(\d{2}):(\d{2}):(\d+)$')
 
 DEFAULTS = {
     'cluster_master': False,
     'cluster_member_down_alert_min': 5,
     'cluster_verify_tls': True,
     'cluster_tls_dir': '/etc/led/tls',
+    'cluster_connectivity_skip': {},
 }
+
+
+def _parse_skip_windows(member, value):
+    """Parse one member's `HH:MM:minutes` windows into (start, duration) pairs."""
+    if not isinstance(value, list):
+        raise ValueError(
+            f"cluster: cluster_connectivity_skip['{member}'] must be a list of "
+            f"'HH:MM:minutes' strings"
+        )
+    periods = []
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError(
+                f"cluster: invalid cluster_connectivity_skip entry {item!r} for '{member}'; "
+                f"expected 'HH:MM:minutes'"
+            )
+        match = _SKIP_PERIOD_RE.match(item)
+        if not match:
+            raise ValueError(
+                f"cluster: invalid cluster_connectivity_skip entry {item!r} for '{member}'; "
+                f"expected 'HH:MM:minutes'"
+            )
+        hour, minute, duration = int(match.group(1)), int(match.group(2)), int(match.group(3))
+        if hour > 23 or minute > 59:
+            raise ValueError(
+                f"cluster: invalid cluster_connectivity_skip entry {item!r} for '{member}'; "
+                f"HH must be 00-23 and MM must be 00-59"
+            )
+        if duration < 1:
+            raise ValueError(
+                f"cluster: invalid cluster_connectivity_skip entry {item!r} for '{member}'; "
+                f"period minutes must be at least 1"
+            )
+        periods.append((hour * 60 + minute, duration))
+    return periods
+
+
+def _parse_connectivity_skip(value):
+    """Parse `cluster_connectivity_skip` into {member: [(start_minute, duration), ...]}.
+
+    Each member maps to `HH:MM:minutes` windows: checks against that member
+    are not done from local HH:MM for `minutes` minutes. Other members are
+    still checked. Windows may cross midnight.
+    """
+    if not isinstance(value, dict):
+        raise ValueError(
+            "cluster: 'cluster_connectivity_skip' must be an object mapping a member "
+            "name to a list of 'HH:MM:minutes' strings"
+        )
+    parsed = {}
+    for member, windows in value.items():
+        if not isinstance(member, str) or not member:
+            raise ValueError(
+                "cluster: cluster_connectivity_skip member names must be non-empty strings"
+            )
+        parsed[member] = _parse_skip_windows(member, windows)
+    return parsed
+
+
+def _connectivity_checks_skipped(periods, now):
+    """True when local time `now` falls inside a configured skip window."""
+    if not periods:
+        return False
+    local = time.localtime(now)
+    minute_of_day = local.tm_hour * 60 + local.tm_min
+    for start, duration in periods:
+        if duration >= MINUTES_PER_DAY:
+            return True
+        end = start + duration
+        if minute_of_day >= start and minute_of_day < end:
+            return True
+        if end > MINUTES_PER_DAY and minute_of_day < (end - MINUTES_PER_DAY):
+            return True
+    return False
 
 
 def _ensure_certs(tls_dir):
@@ -71,6 +149,14 @@ class Cluster:
         self.cluster_id = cfg['cluster_id']
         self.verify_tls = self._with_default(cfg, 'cluster_verify_tls')
         self.tls_dir = self._with_default(cfg, 'cluster_tls_dir')
+        skip_raw = self._with_default(cfg, 'cluster_connectivity_skip')
+        self.skip_periods = _parse_connectivity_skip(skip_raw)
+        unknown = sorted(name for name in self.skip_periods if name not in self.members)
+        if unknown:
+            raise ValueError(
+                "cluster: cluster_connectivity_skip names unknown members: "
+                + ', '.join(unknown)
+            )
         self.alert_target = alert_target
         self.hostname = socket.gethostname()
         self.auth_hash = hashlib.sha256(self.cluster_id.encode('utf-8')).hexdigest()
@@ -88,9 +174,20 @@ class Cluster:
         self.last_alerted_at = {}
         self.master_name = None
         self.version_alerted = False
+        self._stop = threading.Event()
+        self._stopped = False
+        self._httpd = None
+        self._server_thread = None
+        self._watcher_thread = None
+        self._skipping_peers = set()
 
         if not self.verify_tls:
             print("  cluster: WARNING cluster_verify_tls=false — peer certificates are NOT verified")
+        if self.skip_periods:
+            shown = ', '.join(
+                f"{name} ({', '.join(skip_raw[name])})" for name in self.skip_periods
+            )
+            print(f"  cluster: connectivity checks skipped for: {shown}")
 
     @staticmethod
     def _with_default(cfg, key):
@@ -194,14 +291,40 @@ class Cluster:
         self._alert(f"Lost communication with node '{name}'. Last successful ping was at '{when}'")
         self.last_alerted_at[name] = now
 
+    def _peer_periods(self, name):
+        if not name:
+            return ()
+        return self.skip_periods.get(name, ())
+
+    def _note_skip(self, name, skipping, now):
+        """Track a per-peer skip window. Reset that peer's clock when it ends."""
+        if skipping:
+            if name not in self._skipping_peers:
+                print(f"  cluster: connectivity checks paused for {name}")
+                self._skipping_peers.add(name)
+            return True
+        if name in self._skipping_peers:
+            print(f"  cluster: connectivity checks resumed for {name}")
+            self._skipping_peers.discard(name)
+            with self.lock:
+                self.last_slave_pings[name] = now
+                self.last_alerted_at.pop(name, None)
+                if name == self.master_name:
+                    self.last_master_ping = now
+        return False
+
     def _watcher(self):
         threshold = self.down_min * 60
-        while True:
-            time.sleep(PING_INTERVAL_SEC)
+        while not self._stop.is_set():
+            if self._stop.wait(PING_INTERVAL_SEC):
+                return
             now = time.time()
             if self.is_master:
                 for name, addr in self.members.items():
                     if name == self.self_name:
+                        continue
+                    skipped = _connectivity_checks_skipped(self._peer_periods(name), now)
+                    if self._note_skip(name, skipped, now):
                         continue
                     try:
                         self._request('GET', addr, '/ping')
@@ -214,10 +337,14 @@ class Cluster:
                         if now - last >= threshold:
                             self._maybe_alert_down(name, last, now)
             else:
+                master = self.master_name
+                skipped = _connectivity_checks_skipped(self._peer_periods(master), now)
+                if master and self._note_skip(master, skipped, now):
+                    continue
                 with self.lock:
                     last = self.last_master_ping
                 if now - last >= threshold:
-                    self._maybe_alert_down(self.master_name or 'master', last, now)
+                    self._maybe_alert_down(master or 'master', last, now)
 
     def _make_server(self):
         cluster = self
@@ -273,11 +400,38 @@ class Cluster:
         mode = 'master' if self.is_master else 'slave'
         print(f"  cluster: starting on port {self.port}, mode={mode}, members={list(self.members)}")
         httpd = self._make_server()
-        threading.Thread(target=httpd.serve_forever, name="cluster-server", daemon=True).start()
+        self._httpd = httpd
+        self._server_thread = threading.Thread(
+            target=httpd.serve_forever, name="cluster-server", daemon=True,
+        )
+        self._server_thread.start()
         # Give the server a beat to actually be listening before we handshake peers.
         time.sleep(0.2)
         self._do_handshakes()
-        threading.Thread(target=self._watcher, name="cluster-watcher", daemon=True).start()
+        self._watcher_thread = threading.Thread(
+            target=self._watcher, name="cluster-watcher", daemon=True,
+        )
+        self._watcher_thread.start()
+
+    def stop(self):
+        """Stop the HTTPS server and the connectivity watcher."""
+        if self._stopped:
+            return
+        self._stopped = True
+        self._stop.set()
+        if self._httpd is not None:
+            try:
+                self._httpd.shutdown()
+            except Exception:
+                pass
+            try:
+                self._httpd.server_close()
+            except Exception:
+                pass
+        if self._server_thread is not None:
+            self._server_thread.join(timeout=2)
+        if self._watcher_thread is not None:
+            self._watcher_thread.join(timeout=2)
 
 
 def start_if_configured(cfg, get_target):

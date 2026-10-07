@@ -31,11 +31,13 @@ The installer will:
    the daemon out of the system Python, which on modern Debian/Ubuntu is
    blocked from `pip install` by PEP 668. `--force-reinstall` ensures new
    code is picked up even when the version in `pyproject.toml` wasn't bumped.
-4. Symlink `/opt/led/venv/bin/led` and `led_send` into `/usr/local/bin/`
+4. Run the test suite with that virtualenv. The install stops if tests fail,
+   before the service is restarted.
+5. Symlink `/opt/led/venv/bin/led` and `led_send` into `/usr/local/bin/`
    so both are on the default `PATH`.
-5. Render `led.service` into `/etc/systemd/system/led.service` with the
+6. Render `led.service` into `/etc/systemd/system/led.service` with the
    venv's `led` path substituted into `ExecStart`.
-6. `systemctl daemon-reload`. If the service is already active, it's
+7. `systemctl daemon-reload`. If the service is already active, it's
    restarted so the new code takes effect immediately.
 
 After install:

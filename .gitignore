@@ -2,3 +2,5 @@
 build/
 led.egg-info
 TODO.txt
+*.pyc
+__pycache__/
