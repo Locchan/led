@@ -97,6 +97,19 @@ def _parse_connectivity_skip(value):
     return parsed
 
 
+def _format_downtime(seconds):
+    """Format a duration as '1 hour 2 minutes 3 seconds'."""
+    seconds = int(max(0, seconds))
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, secs = divmod(rem, 60)
+    parts = []
+    for count, singular in ((days, 'day'), (hours, 'hour'), (minutes, 'minute'), (secs, 'second')):
+        if count or (singular == 'second' and not parts):
+            parts.append(f"{count} {singular}" + ("s" if count != 1 else ""))
+    return ' '.join(parts)
+
+
 def _connectivity_checks_skipped(periods, now):
     """True when local time `now` falls inside a configured skip window."""
     if not periods:
@@ -172,6 +185,7 @@ class Cluster:
         self.last_master_ping = time.time()
         self.last_slave_pings = {}
         self.last_alerted_at = {}
+        self.down_since = {}
         self.master_name = None
         self.version_alerted = False
         self._stop = threading.Event()
@@ -290,6 +304,23 @@ class Cluster:
         when = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_ping))
         self._alert(f"Lost communication with node '{name}'. Last successful ping was at '{when}'")
         self.last_alerted_at[name] = now
+        if name not in self.down_since:
+            self.down_since[name] = last_ping
+
+    def _maybe_alert_up(self, name, recovered_at):
+        """Alert once when a peer we had reported down answers again."""
+        with self.lock:
+            if name not in self.last_alerted_at:
+                return
+            started = self.down_since.get(name, recovered_at)
+        downtime = max(0, recovered_at - started)
+        self._alert(
+            f"Connection to node '{name}' reestablished. "
+            f"Total downtime was {_format_downtime(downtime)}."
+        )
+        with self.lock:
+            self.last_alerted_at.pop(name, None)
+            self.down_since.pop(name, None)
 
     def _peer_periods(self, name):
         if not name:
@@ -309,6 +340,7 @@ class Cluster:
             with self.lock:
                 self.last_slave_pings[name] = now
                 self.last_alerted_at.pop(name, None)
+                self.down_since.pop(name, None)
                 if name == self.master_name:
                     self.last_master_ping = now
         return False
@@ -328,23 +360,28 @@ class Cluster:
                         continue
                     try:
                         self._request('GET', addr, '/ping')
-                        with self.lock:
-                            self.last_slave_pings[name] = now
-                            self.last_alerted_at.pop(name, None)
                     except Exception as e:
                         print(f"  cluster: ping to {name} ({addr}) failed: {e.__class__.__name__}: {e}")
                         last = self.last_slave_pings.get(name, now)
                         if now - last >= threshold:
                             self._maybe_alert_down(name, last, now)
+                    else:
+                        self._maybe_alert_up(name, now)
+                        with self.lock:
+                            self.last_slave_pings[name] = now
             else:
                 master = self.master_name
                 skipped = _connectivity_checks_skipped(self._peer_periods(master), now)
                 if master and self._note_skip(master, skipped, now):
                     continue
+                name = master or 'master'
                 with self.lock:
                     last = self.last_master_ping
-                if now - last >= threshold:
-                    self._maybe_alert_down(master or 'master', last, now)
+                    was_down = name in self.last_alerted_at
+                if was_down and now - last < threshold:
+                    self._maybe_alert_up(name, last)
+                elif now - last >= threshold:
+                    self._maybe_alert_down(name, last, now)
 
     def _make_server(self):
         cluster = self

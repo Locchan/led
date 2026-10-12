@@ -69,8 +69,12 @@ Cluster-specific alert messages:
 - **Node down**: when a node hasn't pinged (or been pinged) within
   `cluster_member_down_alert_min` minutes, the watcher emits
   `Lost communication with node '<name>'. Last successful ping was at '<time>'`.
-  Repeats every hour until the node is reachable again. Silence inside that
-  peer's `cluster_connectivity_skip` window does not count toward this threshold.
+  Repeats every hour until the node is reachable again. When the connection
+  comes back, one alert reports
+  `Connection to node '<name>' reestablished. Total downtime was <duration>.`
+  Downtime runs from the last successful ping until the connection returns.
+  Silence inside that peer's `cluster_connectivity_skip` window does not count
+  toward this threshold and does not produce a reestablished alert.
 - **Version mismatch** *(master only)*: at startup, if any peer reports a
   different `led` version than the master, an alert fires once.
 - **Master conflict**: if a master sees any peer also reporting

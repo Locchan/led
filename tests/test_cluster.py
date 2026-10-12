@@ -28,6 +28,7 @@ from led.cluster import (
     Cluster,
     _connectivity_checks_skipped,
     _ensure_certs,
+    _format_downtime,
     _parse_connectivity_skip,
     start_if_configured,
 )
@@ -181,6 +182,13 @@ class ConnectivitySkipTests(unittest.TestCase):
         self.assertFalse(_connectivity_checks_skipped(almost, at_clock(11, 59)))
 
         self.assertFalse(_connectivity_checks_skipped([], at_clock(12, 0)))
+
+    def test_downtime_format(self):
+        self.assertEqual(_format_downtime(0), '0 seconds')
+        self.assertEqual(_format_downtime(1), '1 second')
+        self.assertEqual(_format_downtime(61), '1 minute 1 second')
+        self.assertEqual(_format_downtime(3661), '1 hour 1 minute 1 second')
+        self.assertEqual(_format_downtime(90061), '1 day 1 hour 1 minute 1 second')
 
 
 class _ClusterTestCase(unittest.TestCase):
@@ -460,6 +468,13 @@ class ClusterPairTests(_ClusterTestCase):
             return last >= restarted_at and not still_down
 
         wait_until(healthy, timeout=10)
+        restored = [m for m in master.alerts.messages if 'reestablished' in m]
+        self.assertEqual(len(restored), 1)
+        self.assertRegex(
+            restored[0],
+            r"led alert from node-a:\nConnection to node 'node-b' reestablished\. "
+            r"Total downtime was \d+ ",
+        )
         settled = len(master.alerts.messages)
         time.sleep(PING_INTERVAL * 5)
         self.assertEqual(len(master.alerts.messages), settled)
@@ -477,6 +492,21 @@ class ClusterPairTests(_ClusterTestCase):
         self.assertEqual(len(slave.alerts.messages), 1)
         self.assertTrue(slave.alerts.messages[0].startswith('led alert from node-b:\n'))
         self.assertIn("Lost communication with node 'node-a'", slave.alerts.messages[0])
+
+        self._start('node-a', self._cfg(
+            'node-a', pair['ports']['node-a'], pair['members'], master=True,
+        ))
+        wait_until(
+            lambda: any('reestablished' in m for m in slave.alerts.messages),
+            timeout=10,
+        )
+        restored = [m for m in slave.alerts.messages if 'reestablished' in m]
+        self.assertEqual(len(restored), 1)
+        self.assertRegex(
+            restored[0],
+            r"led alert from node-b:\nConnection to node 'node-a' reestablished\. "
+            r"Total downtime was \d+ ",
+        )
 
     def test_version_mismatch_alerts_once(self):
         port_a, port_b, port_c = free_port(), free_port(), free_port()
