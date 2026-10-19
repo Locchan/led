@@ -26,6 +26,16 @@ Sends each routed message as a Telegram message via the Bot API
 (`https://api.telegram.org/bot<token>/sendMessage`). Multiple recipients are
 supported — pass them as `chat_ids`.
 
+Files ride along as the message caption. The extension picks the method:
+`.jpg`, `.jpeg`, `.png`, `.webp`, `.bmp`, and `.gif` use `sendPhoto`;
+`.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`, and `.m4v` use `sendVideo`
+(with streaming enabled). Every other file uses `sendDocument`.
+
+A Telegram API error (`ok: false` in the response body) is not retried.
+led sends an alert through this same target and deletes that file. A
+timeout or a dropped connection leaves the file in place so the router
+can try again.
+
 | Field       | Type                       | Required | Default | Description                                                 |
 |-------------|----------------------------|----------|---------|-------------------------------------------------------------|
 | `bot_token` | string                     | yes      | —       | Bot token from BotFather.                                   |

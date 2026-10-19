@@ -1,6 +1,38 @@
+import os
+
 import requests
 
 from led.Interfaces.EventTarget import EventTarget
+from led.alerts import send_alert
+
+
+# Extensions Telegram's sendPhoto / sendVideo accept as media.
+PHOTO_FORMATS = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif')
+VIDEO_FORMATS = ('.mp4', '.mov', '.mkv', '.webm', '.avi', '.m4v')
+
+
+def _upload_for(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext in PHOTO_FORMATS:
+        return 'sendPhoto', 'photo'
+    if ext in VIDEO_FORMATS:
+        return 'sendVideo', 'video'
+    return 'sendDocument', 'document'
+
+
+def _api_error(resp):
+    """Telegram's JSON error body, or None when this is not one.
+
+    Timeouts and other transport failures never get here: requests raises
+    before a response exists.
+    """
+    try:
+        data = resp.json()
+    except ValueError:
+        return None
+    if isinstance(data, dict) and data.get('ok') is False:
+        return data.get('description') or 'Telegram API error'
+    return None
 
 
 class TargetTelegram(EventTarget):
@@ -32,19 +64,7 @@ class TargetTelegram(EventTarget):
 
     def _send(self, source, message, files=None):
         for chat_id in self.chat_ids:
-            if files:
-                url = f"https://api.telegram.org/bot{self.bot_token}/sendDocument"
-
-                for file_path in files:
-                    with open(file_path, 'rb') as f:
-                        payload = {
-                            'chat_id': chat_id,
-                            'caption': message,
-                            'parse_mode': 'HTML'
-                        }
-                        files_payload = {'document': f}
-                        requests.post(url, data=payload, files=files_payload, timeout=30)
-            else:
+            if not files:
                 url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
                 payload = {
                     'chat_id': chat_id,
@@ -52,3 +72,28 @@ class TargetTelegram(EventTarget):
                     'parse_mode': 'HTML'
                 }
                 requests.post(url, data=payload, timeout=10)
+                continue
+
+            for file_path in files:
+                if not os.path.isfile(file_path):
+                    continue
+                method, field = _upload_for(file_path)
+                url = f"https://api.telegram.org/bot{self.bot_token}/{method}"
+                with open(file_path, 'rb') as f:
+                    payload = {
+                        'chat_id': chat_id,
+                        'caption': message,
+                        'parse_mode': 'HTML'
+                    }
+                    if method == 'sendVideo':
+                        payload['supports_streaming'] = 'true'
+                    resp = requests.post(url, data=payload, files={field: f}, timeout=30)
+                err = _api_error(resp)
+                if not err:
+                    continue
+                send_alert(self, f"Failed to send {file_path}: {err}")
+                try:
+                    os.remove(file_path)
+                except OSError as e:
+                    print(f"  [{self.id}] {self.name}: could not remove {file_path}: "
+                          f"{e.__class__.__name__}: {e}")
